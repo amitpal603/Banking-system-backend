@@ -46,3 +46,17 @@ export const sendEmail = async (to, subject, text,html) => {
     const html = `<p>Dear ${name},</p><p>Thank you for registering with our banking system. We are excited to have you on board!</p><p>Best regards,<br/>Banking System Team</p>`;
     await sendEmail(userEmail, subject, text, html);
 }
+
+export const sendTransactionEmail = async (userEmail , name , amount , toAccount) => {
+  const subject = 'Transaction Alert';
+  const text = `Dear ${name},\n\nYou have successfully transferred ${amount} to account ${toAccount}. If you did not authorize this transaction, please contact our support immediately.\n\nBest regards,\nBanking System Team`;
+  const html = `<p>Dear ${name},</p><p>You have successfully transferred <strong>${amount}</strong> to account <strong>${toAccount}</strong>. If you did not authorize this transaction, please contact our support immediately.</p><p>Best regards,<br/>Banking System Team</p>`;
+  await sendEmail(userEmail, subject, text, html);
+}
+
+export const sendTransactionFailureEmail = async (userEmail , name , amount , toAccount) => {
+  const subject = 'Transaction Failed';
+  const text = `Dear ${name},\n\nWe regret to inform you that your transaction of ${amount} to account ${toAccount} has failed. Please check your account balance and try again. If you continue to experience issues, please contact our support team.\n\nBest regards,\nBanking System Team`;
+  const html = `<p>Dear ${name},</p><p>We regret to inform you that your transaction of <strong>${amount}</strong> to account <strong>${toAccount}</strong> has failed. Please check your account balance and try again. If you continue to experience issues, please contact our support team.</p><p>Best regards,<br/>Banking System Team</p>`;
+  await sendEmail(userEmail, subject, text, html);
+}
