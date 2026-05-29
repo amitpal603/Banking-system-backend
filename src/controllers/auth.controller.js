@@ -1,5 +1,6 @@
- import User from "../models/User.model.js";
+ import User from "../models/user.model.js";
  import jwt from "jsonwebtoken"
+import { sendRegistrationEmail } from "../services/email.service.js";
  
  /**
   * @desc    User Registration
@@ -35,7 +36,7 @@
             email : newUser.email,
             token
         })
-
+        await sendRegistrationEmail(newUser.email , newUser.name)
     }
     catch (error) {
         res.status(500).json({message : "Internal server error"})
