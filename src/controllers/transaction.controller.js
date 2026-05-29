@@ -81,27 +81,27 @@ export const createTransaction = async (req, res) => {
    session.startTransaction()
 
    try{
-    const transaction = await transactionModel.create({
+    const transaction = new transactionModel({
         fromAccount,
         toAccount,
         amount,
         idempotencyKey,
         status : "PENDING"
-    } , {session})
+    })
 
-    const debitLedgerEntry = await ledgerModel.create({
+    const debitLedgerEntry = await ledgerModel.create([{
         account : fromAccount,
         type : "DEBIT",
         amount,
         transaction : transaction._id
-    } , {session})
+    }] , {session})
 
-    const creditLedgerEntry = await ledgerModel.create({
+    const creditLedgerEntry = await ledgerModel.create([{
         account : toAccount,
         type : "CREDIT",
         amount,
         transaction : transaction._id
-    } , {session})
+    }] , {session})
 
     transaction.status = "COMPLETED"
     await transaction.save({session})
@@ -121,3 +121,64 @@ export const createTransaction = async (req, res) => {
    }
 
 };
+
+export const createInitialTransactionFunds = async (req , res) => {
+    const { toAccount , amount , idempotencyKey } = req.body
+
+    if(!toAccount || !amount || !idempotencyKey){
+        return res.status(400).json({message : "All fields are required"})
+    }
+
+    const toUserAccount = await accountModel.findOne({ _id: toAccount });
+
+    if (!toUserAccount) {
+      return res.status(404).json({ message: "Account not found" });
+    }
+
+    const fromUserAccount = await accountModel.findOne(
+        {
+            
+            user : req.user._id
+        }
+    );
+    if(!fromUserAccount){
+        return res.status(404).json({message : "System account not found"})
+    }
+
+    const session = await mongoose.startSession()
+    session.startTransaction()
+
+    try {
+        const transaction = new transactionModel({
+            fromAccount : fromUserAccount._id,
+            toAccount,
+            amount,
+            idempotencyKey,
+            status : "PENDING"
+        })
+        const debitLedgerEntry = await ledgerModel.create([{
+            account : fromUserAccount._id,
+            type : "DEBIT",
+            amount,
+            transaction : transaction._id
+        } ], {session})
+        const creditLedgerEntry = await ledgerModel.create([{
+            account : toAccount,
+            type : "CREDIT",
+            amount,
+            transaction : transaction._id
+        } ], {session})
+        transaction.status = "COMPLETED"
+        await transaction.save({session})
+        await session.commitTransaction()
+        session.endSession()
+        res.status(201).json({
+            message : "Initial funds added successfully",
+            transaction
+        })
+    } catch (error) {
+        await session.abortTransaction()
+        session.endSession()
+        return res.status(500).json({message : "Internal server error"})
+    }
+}
