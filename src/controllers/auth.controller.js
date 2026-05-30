@@ -83,3 +83,18 @@ export const userLogin = async (req , res) => {
     }
 }
 
+export const userLogout = async (req , res) => {
+    const token = req.cookies.token || req.headers.authorization?.split(" ")[1]
+
+    if(!token) {
+        return res.status(400).json({message : "Token is required"})
+    }
+    res.cookie("token" , "")
+    try {
+        await blacklistModel.create({ token })
+        res.status(200).json({message : "User logged out successfully"})
+    } catch (error) {
+        res.status(500).json({message : "Internal server error"})
+    }
+}
+

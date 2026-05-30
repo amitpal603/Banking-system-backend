@@ -77,17 +77,19 @@ export const createTransaction = async (req, res) => {
    }
 
    //? 5. Create transaction (pending)
+   let transaction
+   try {
    const session = await mongoose.startSession()
    session.startTransaction()
 
-   try{
-    const transaction = new transactionModel({
+   
+     transaction = (await transactionModel.create([{
         fromAccount,
         toAccount,
         amount,
         idempotencyKey,
         status : "PENDING"
-    })
+    }] , {session}))[0]
 
     const debitLedgerEntry = await ledgerModel.create([{
         account : fromAccount,
@@ -95,7 +97,9 @@ export const createTransaction = async (req, res) => {
         amount,
         transaction : transaction._id
     }] , {session})
-
+    await (() => {
+      return new Promise((resolve) => setTimeout(resolve , 15 * 1000))
+    })()
     const creditLedgerEntry = await ledgerModel.create([{
         account : toAccount,
         type : "CREDIT",
@@ -103,10 +107,16 @@ export const createTransaction = async (req, res) => {
         transaction : transaction._id
     }] , {session})
 
-    transaction.status = "COMPLETED"
-    await transaction.save({session})
-    session.endSession()
+   await transactionModel.findOneAndUpdate(
+    {_id : transaction._id} ,
+    {status : "COMPLETED"} ,
+    {session , new : true}
+   )
 
+   await session.commitTransaction()
+   session.endSession()
+  } catch (error) {    return res.status(400).json({message : "Transaction is pending due to an error , please check back later"})
+  }
     //? 10. Send email notification
     sendTransactionEmail(req.user.email , req.user.name , amount , toUserAccount._id)
 
@@ -114,12 +124,7 @@ export const createTransaction = async (req, res) => {
         message : "Transaction completed successfully",
         transaction
     })
-   } catch (error) {
-    await session.abortTransaction()
-    session.endSession()
-    return res.status(500).json({message : "Internal server error"})
-   }
-
+   
 };
 
 export const createInitialTransactionFunds = async (req , res) => {
